@@ -30,7 +30,7 @@
                 "titleBar.inactiveForeground": "#e7e7e799"
         },
         "peacock.color": "#26313b",
-        "workbench.colorTheme": "Dark Modern",
+        "workbench.colorTheme": "Dark 2026",
         "editor.fontFamily": "Menlo",
         "window.autoDetectColorScheme": false
 }

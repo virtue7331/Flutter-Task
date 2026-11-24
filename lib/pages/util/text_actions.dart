@@ -118,10 +118,28 @@ class ButtonTextColor extends MainButtonClass {
           .map(
             (e) => MenuItemButton(
               onPressed: () => onChooseColor(e),
-              child: Container(decoration: BoxDecoration(shape: BoxShape.circle, color: e), width: double.infinity, height: 25,),
+              child: Container(
+                decoration: BoxDecoration(shape: BoxShape.circle, color: e),
+                width: double.infinity,
+                height: 25,
+              ),
             ),
           )
-          .toList(), 
+          .toList(),
+    );
+  }
+}
+
+class ButtonCheckbox extends StatelessWidget {
+  new({super.key, required this.onPressed});
+
+  void Function()? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      icon: Icon(Icons.check_box_outline_blank_rounded, color: Colors.white),
     );
   }
 }

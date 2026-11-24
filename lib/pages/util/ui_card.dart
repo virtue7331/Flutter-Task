@@ -70,18 +70,26 @@ class ToDoTileCard extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Checkbox(
-                      value: isCompleted,
-                      onChanged: onChanged,
-                      activeColor: Colors.teal[500],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                    SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: FittedBox(
+                        child: Checkbox(
+                          side: BorderSide(color: Colors.teal.shade800),
+                          splashRadius: 0,
+                          value: isCompleted,
+                          onChanged: onChanged,
+                          activeColor: Colors.teal[500],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                        ),
                       ),
                     ),
                     Expanded(
                       child: Text(
                         description,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 16,

@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:hive_flutter/adapters.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:todolist/data/database.dart';
 import 'package:todolist/data/text_controller.dart';
 import 'package:todolist/pages/util/text_actions.dart';
@@ -68,7 +72,12 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
 
     _controllerDescr.addListener(() {
       final s = _controllerDescr.selection;
-      if (s.isValid && !s.isCollapsed) _lastTextSelection = s;
+      if (s.isValid && !s.isCollapsed) {
+        _lastTextSelection = s;
+      } else if (_descrFocusNode.hasFocus) {
+        // курсор стоит в поле без выделения: старое выделение больше не актуально
+        _lastTextSelection = const TextSelection.collapsed(offset: 0);
+      }
     });
 
     _labelFocusNode.addListener(
@@ -105,6 +114,22 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
     Navigator.pop(context);
   }
 
+  final _picker = ImagePicker();
+  final List<String> _images = []; // пути к файлам
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    // Копируем в папку приложения: временный файл из галереи может исчезнуть
+    final dir = await getApplicationDocumentsDirectory();
+    final saved = await File(picked.path).copy(
+      '${dir.path}/${DateTime.now().millisecondsSinceEpoch}_${picked.name}',
+    );
+
+    setState(() => _images.add(saved.path));
+  }
+
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder(
@@ -115,7 +140,7 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
         return Scaffold(
           backgroundColor: const Color.fromARGB(255, 20, 20, 20),
           appBar: renderAppBar(value),
-          body: renderBody(),
+          body: renderField(),
           bottomNavigationBar: renderNavBar(),
         );
       },
@@ -142,6 +167,7 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
                   );
                   _lastTextSelection = const TextSelection.collapsed(offset: 0);
                 } else {
+                  _controllerDescr.clearSizes();
                   setState(() => _fontSize = value);
                   Hive.box('mybox').put('FONT_SIZE', value);
                 }
@@ -155,9 +181,16 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
                   _controllerDescr.applyColor(value, _lastTextSelection);
                   _lastTextSelection = const TextSelection.collapsed(offset: 0);
                 } else {
+                  _controllerDescr.clearColors();
                   setState(() => _chooseColor = value);
                   Hive.box('mybox').put('COLOR', value.toARGB32());
                 }
+                _descrFocusNode.requestFocus();
+              },
+            ),
+            ButtonCheckbox(
+              onPressed: () {
+                _controllerDescr.toggleCheckboxLine();
                 _descrFocusNode.requestFocus();
               },
             ),
@@ -167,26 +200,57 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
     ),
   );
 
-  Widget? renderBody() => GestureDetector(
+  Widget renderField() => GestureDetector(
     behavior: HitTestBehavior.opaque,
     onTap: () => _labelFocusNode.unfocus(),
     child: Padding(
       padding: const EdgeInsets.only(top: 80, bottom: 80),
-      child: TextField(
-        focusNode: _descrFocusNode,
-        controller: _controllerDescr,
-        expands: true,
-        minLines: null,
-        maxLines: null,
-        textAlignVertical: TextAlignVertical.top,
-        readOnly: false,
-        textCapitalization: TextCapitalization.sentences,
-        style: TextStyle(color: _chooseColor, fontSize: _fontSize.toDouble()),
-        decoration: const InputDecoration(
-          filled: true,
-          fillColor: Colors.black,
-          border: InputBorder.none,
-        ),
+      child: Column(
+        children: [
+          // Лента картинок: показывается, только если они есть
+          if (_images.isNotEmpty)
+            SizedBox(
+              height: 120,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final path in _images)
+                    Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(File(path)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+          // Expanded обязателен: у TextField стоит expands: true,
+          // и ему нужно сказать, сколько места занимать (всё оставшееся)
+          Expanded(
+            child: TextField(
+              onTap: _controllerDescr.toggleBoxAtCaret,
+              focusNode: _descrFocusNode,
+              controller: _controllerDescr,
+              expands: true,
+              minLines: null,
+              maxLines: null,
+              textAlignVertical: TextAlignVertical.top,
+              textCapitalization: TextCapitalization.sentences,
+              style: TextStyle(
+                color: _chooseColor,
+                fontSize: _fontSize.toDouble(),
+                height: 1.3,
+              ),
+              decoration: const InputDecoration(
+                filled: true,
+                fillColor: Colors.black,
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+        ],
       ),
     ),
   );
@@ -226,7 +290,7 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           IconButton(
-            onPressed: () {},
+            onPressed: _pickImage,
             icon: Icon(Icons.add),
             color: Colors.white,
             highlightColor: Colors.teal[500],
