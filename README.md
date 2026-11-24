@@ -1,17 +1,89 @@
-# todolist
+# 📝 ToDoList — приложение для заметок
 
-A new Flutter project.
+Приложение для создания, редактирования и хранения заметок с возможностью форматирования текста и добавления изображений. Проект разработан на **Flutter** с использованием языка программирования **Dart**.
 
-## Getting Started
+## ✨ Возможности
 
-This project is a starting point for a Flutter application.
+- 📝 **Создание заметок** — добавление новых записей с заголовком и содержанием.
+- ✏️ **Редактирование** — изменение уже созданных заметок.
+- 🗑️ **Удаление** — удаление ненужных записей.
+- 🎨 **Форматирование текста** — настройка размера и цвета шрифта.
+- 🖼️ **Добавление изображений** — вставка изображений непосредственно в текст заметки.
+- 🔄 **Перемещение изображений** — возможность менять расположение изображений внутри заметки перетаскиванием.
+- 💾 **Локальное хранение** — сохранение заметок на устройстве с помощью Hive.
 
-A few resources to get you started if this is your first Flutter project:
+## 🛠️ Используемые технологии
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+| Технология | Назначение |
+|---|---|
+| Flutter | Разработка пользовательского интерфейса |
+| Dart | Основной язык программирования |
+| Hive | Локальное хранение данных |
+| Image Picker | Выбор изображений с устройства |
+| Path Provider | Работа с файловой системой устройства |
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📂 Структура проекта
+
+```text
+lib/
+├── data/
+│   ├── database.dart
+│   └── text_controller.dart
+│
+├── pages/
+│   ├── add_page.dart
+│   └── util/
+│       └── text_actions.dart
+│
+└── main.dart
+```
+
+*Структура приведена по основным известным компонентам проекта и может отличаться от актуальной.*
+
+## 🚀 Установка и запуск
+
+### 1. Клонирование репозитория
+
+```bash
+git clone https://github.com/USERNAME/REPOSITORY.git
+```
+
+### 2. Переход в папку проекта
+
+```bash
+cd REPOSITORY
+```
+
+### 3. Установка зависимостей
+
+```bash
+flutter pub get
+```
+
+### 4. Запуск приложения
+
+```bash
+flutter run
+```
+
+## 📸 Скриншоты
+
+Здесь можно разместить скриншоты интерфейса приложения:
+
+| Главный экран | Создание заметки |
+|---|---|
+| Добавьте изображение `screenshots/home.png` | Добавьте изображение `screenshots/editor.png` |
+
+## 📌 О проекте
+
+ToDoList — проект, направленный на создание удобного инструмента для ведения заметок. Основное внимание уделено простоте интерфейса, удобству редактирования записей и возможности размещать текст и изображения в рамках одной заметки.
+
+## 👨‍💻 Автор
+
+**Pavel Fedorenko**
+
+GitHub: [@USERNAME](https://github.com/USERNAME)
+
+---
+
+⭐ Если проект оказался полезным или интересным, поставьте репозиторию звезду!
