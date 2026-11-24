@@ -72,9 +72,9 @@ ToDoList — проект, направленный на создание удо
 
 ## 👨‍💻 Автор
 
-**Pavel Fedorenko**
+**v1r_tu3**
 
-GitHub: [@USERNAME](https://github.com/USERNAME)
+GitHub: [@USERNAME](https://github.com/virtue7331)
 
 ---
 
