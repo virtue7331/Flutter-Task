@@ -132,7 +132,7 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
   }
 
   final _picker = ImagePicker();
-  final List<String> _images = []; // пути к файлам
+  // final List<String> _images = []; // пути к файлам
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
