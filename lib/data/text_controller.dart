@@ -160,6 +160,76 @@ class StyledTextController extends TextEditingController {
     notifyListeners();
   }
 
+  /// Переместить изображение в указанную позицию текста.
+  void moveImageTo(int from, int targetOffset) {
+    if (!_consistent) return;
+
+    if (from < 0 || from >= text.length) return;
+    if (text[from] != imageChar || images[from] == null) return;
+
+    // Сохраняем данные самого изображения.
+    final imagePath = images[from];
+    final imageSize = sizes[from];
+    final imageColor = colors[from];
+
+    // Определяем диапазон изображения.
+    // Убираем также один соседний перенос строки,
+    // чтобы после перемещения не оставалось пустых строк.
+    int blockStart = from;
+    int blockEnd = from + 1;
+
+    if (blockEnd < text.length && text[blockEnd] == '\n') {
+      blockEnd++;
+    } else if (blockStart > 0 && text[blockStart - 1] == '\n') {
+      blockStart--;
+    }
+
+    final removedLength = blockEnd - blockStart;
+
+    // Удаляем изображение из старой позиции.
+    final newText = text.replaceRange(blockStart, blockEnd, '');
+
+    // Корректируем позицию с учётом удаления.
+    int target = targetOffset.clamp(0, text.length).toInt();
+
+    if (target >= blockEnd) {
+      target -= removedLength;
+    } else if (target > blockStart) {
+      target = blockStart;
+    }
+
+    target = target.clamp(0, newText.length).toInt();
+
+    // Определяем, нужны ли переносы строк в новом месте.
+    final before = target > 0 && newText[target - 1] != '\n';
+    final after = target < newText.length && newText[target] != '\n';
+
+    final insert = '${before ? '\n' : ''}$imageChar${after ? '\n' : ''}';
+
+    final imageIndex = target + (before ? 1 : 0);
+
+    // Обновляем списки стилей и путей.
+    _splice(sizes, blockStart, removedLength, insert.length);
+    _splice(colors, blockStart, removedLength, insert.length);
+    _splice(images, blockStart, removedLength, insert.length);
+
+    sizes[imageIndex] = imageSize;
+    colors[imageIndex] = imageColor;
+    images[imageIndex] = imagePath;
+
+    // Обновляем текст без повторной синхронизации списков.
+    _skipSync = true;
+
+    value = TextEditingValue(
+      text: newText.replaceRange(target, target, insert),
+      selection: TextSelection.collapsed(offset: imageIndex + 1),
+    );
+
+    _skipSync = false;
+
+    notifyListeners();
+  }
+
   // ---- Чекбоксы в начале строки ----
 
   static const _unchecked = '☐ ';
@@ -204,6 +274,54 @@ class StyledTextController extends TextEditingController {
     }
   }
 
+  /// Перемещение изображения на позицию другого изображения
+  void moveImage(int from, int to) {
+    if (from == to) return;
+
+    if (from < 0 || to < 0 || from >= text.length || to >= text.length) {
+      return;
+    }
+
+    if (text[from] != imageChar || text[to] != imageChar) {
+      return;
+    }
+
+    // Запоминаем текущий текст
+    final oldText = text;
+
+    // Удаляем символ изображения из старой позиции
+    final newText = oldText.replaceRange(from, from + 1, '');
+
+    // Если изображение перемещается вперёд,
+    // индекс назначения смещается на один символ
+    final target = from < to ? to - 1 : to;
+
+    // Вставляем изображение перед другим изображением
+    final result = newText.replaceRange(target, target, imageChar);
+
+    // Перемещаем связанные данные вместе с изображением
+    void moveItem<T>(List<T?> list) {
+      final item = list.removeAt(from);
+      list.insert(target, item);
+    }
+
+    moveItem(sizes);
+    moveItem(colors);
+    moveItem(images);
+
+    // Обновляем текст без повторной синхронизации списков
+    _skipSync = true;
+    value = TextEditingValue(
+      text: result,
+      selection: TextSelection.collapsed(
+        offset: min(target + 1, result.length),
+      ),
+    );
+    _skipSync = false;
+
+    notifyListeners();
+  }
+
   /// Вызывать из onTap поля: если нажали на сам значок, переключить ☐ и ☑
   void toggleBoxAtCaret() {
     if (!selection.isValid || !selection.isCollapsed) return;
@@ -238,7 +356,7 @@ class StyledTextController extends TextEditingController {
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
-            child: _InlineImage(path: path, width: imageWidth),
+            child: _InlineImage(path: path, width: imageWidth, index: start),
           ),
         );
         start++;
@@ -300,31 +418,57 @@ class StyledTextController extends TextEditingController {
 }
 
 /// Картинка внутри текста
+
+/// Картинка внутри текста с возможностью перетаскивания.
 class _InlineImage extends StatelessWidget {
-  const _InlineImage({required this.path, required this.width});
+  const _InlineImage({
+    required this.path,
+    required this.width,
+    required this.index,
+  });
 
   final String path;
   final double width;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          File(path),
-          width: width,
-          cacheWidth: 800, // не держим в памяти фото в полном разрешении
-          // файл могли удалить: показываем значок вместо ошибки
-          errorBuilder: (context, error, stackTrace) => SizedBox(
+    final image = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.file(
+        File(path),
+        width: width,
+        cacheWidth: 800,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return SizedBox(
             width: width,
             height: 80,
             child: const Center(
               child: Icon(Icons.broken_image_outlined, color: Colors.white54),
             ),
+          );
+        },
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: LongPressDraggable<int>(
+        data: index,
+        delay: const Duration(milliseconds: 250),
+
+        feedback: Material(
+          color: Colors.transparent,
+          child: Opacity(
+            opacity: 0.8,
+            child: SizedBox(width: width, child: image),
           ),
         ),
+
+        childWhenDragging: Opacity(opacity: 0.25, child: image),
+
+        child: image,
       ),
     );
   }

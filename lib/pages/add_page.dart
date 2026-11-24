@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:todolist/data/database.dart';
 import 'package:todolist/data/text_controller.dart';
 import 'package:todolist/pages/util/text_actions.dart';
+import 'package:flutter/rendering.dart';
 
 // ignore: must_be_immutable
 class NavBarAddPage extends StatefulWidget {
@@ -21,6 +22,8 @@ class NavBarAddPage extends StatefulWidget {
 class _NavBarAddPageState extends State<NavBarAddPage> {
   final _labelFocusNode = FocusNode();
   final _descrFocusNode = FocusNode();
+
+  final GlobalKey _descrFieldKey = GlobalKey();
 
   bool _focused = false;
   bool get _isEditing => widget.index != null;
@@ -85,6 +88,20 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
     );
   }
 
+  RenderEditable? _findRenderEditable(RenderObject? object) {
+    if (object is RenderEditable) {
+      return object;
+    }
+
+    RenderEditable? result;
+
+    object?.visitChildren((child) {
+      result ??= _findRenderEditable(child);
+    });
+
+    return result;
+  }
+
   void _saveTask() {
     var labelText = _controllerLabel.text;
     var description = _controllerDescr.text;
@@ -119,15 +136,21 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
+
     if (picked == null) return;
 
-    // Копируем в папку приложения: временный файл из галереи может исчезнуть
+    // Копируем изображение в постоянную папку приложения
     final dir = await getApplicationDocumentsDirectory();
+
     final saved = await File(picked.path).copy(
       '${dir.path}/${DateTime.now().millisecondsSinceEpoch}_${picked.name}',
     );
 
-    setState(() => _images.add(saved.path));
+    // Вставляем изображение непосредственно в текст
+    _controllerDescr.insertImage(saved.path);
+
+    // Возвращаем фокус текстовому полю
+    _descrFocusNode.requestFocus();
   }
 
   @override
@@ -200,60 +223,78 @@ class _NavBarAddPageState extends State<NavBarAddPage> {
     ),
   );
 
-  Widget renderField() => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: () => _labelFocusNode.unfocus(),
-    child: Padding(
-      padding: const EdgeInsets.only(top: 80, bottom: 80),
-      child: Column(
-        children: [
-          // Лента картинок: показывается, только если они есть
-          if (_images.isNotEmpty)
-            SizedBox(
-              height: 120,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  for (final path in _images)
-                    Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(File(path)),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+  Widget renderField() {
+    _controllerDescr.imageWidth = MediaQuery.of(context).size.width - 40;
 
-          // Expanded обязателен: у TextField стоит expands: true,
-          // и ему нужно сказать, сколько места занимать (всё оставшееся)
-          Expanded(
-            child: TextField(
-              onTap: _controllerDescr.toggleBoxAtCaret,
-              focusNode: _descrFocusNode,
-              controller: _controllerDescr,
-              expands: true,
-              minLines: null,
-              maxLines: null,
-              textAlignVertical: TextAlignVertical.top,
-              textCapitalization: TextCapitalization.sentences,
-              style: TextStyle(
-                color: _chooseColor,
-                fontSize: _fontSize.toDouble(),
-                height: 1.3,
-              ),
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Colors.black,
-                border: InputBorder.none,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        _labelFocusNode.unfocus();
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(top: 80, bottom: 80),
+        child: Column(
+          children: [
+            Expanded(
+              child: DragTarget<int>(
+                // Разрешаем перетаскивание изображения.
+                onWillAcceptWithDetails: (details) {
+                  return true;
+                },
+
+                // Обрабатываем отпускание изображения.
+                onAcceptWithDetails: (details) {
+                  final renderEditable = _findRenderEditable(
+                    _descrFieldKey.currentContext?.findRenderObject(),
+                  );
+
+                  if (renderEditable == null) return;
+
+                  // Определяем позицию текста под курсором.
+                  final textPosition = renderEditable.getPositionForPoint(
+                    details.offset,
+                  );
+
+                  // Перемещаем изображение в новую позицию.
+                  _controllerDescr.moveImageTo(
+                    details.data,
+                    textPosition.offset,
+                  );
+
+                  _descrFocusNode.requestFocus();
+                },
+
+                // Поле для отображения текста и изображений.
+                builder: (context, candidateData, rejectedData) {
+                  return TextField(
+                    key: _descrFieldKey,
+                    onTap: _controllerDescr.toggleBoxAtCaret,
+                    focusNode: _descrFocusNode,
+                    controller: _controllerDescr,
+                    expands: true,
+                    minLines: null,
+                    maxLines: null,
+                    textAlignVertical: TextAlignVertical.top,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(
+                      color: _chooseColor,
+                      fontSize: _fontSize.toDouble(),
+                      height: 1.3,
+                    ),
+                    decoration: const InputDecoration(
+                      filled: true,
+                      fillColor: Colors.black,
+                      border: InputBorder.none,
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   AppBar renderAppBar(num value) => AppBar(
     leadingWidth: 40,

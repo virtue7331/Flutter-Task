@@ -130,6 +130,7 @@ class ButtonTextColor extends MainButtonClass {
   }
 }
 
+// ignore: must_be_immutable
 class ButtonCheckbox extends StatelessWidget {
   new({super.key, required this.onPressed});
 
